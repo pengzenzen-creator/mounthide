@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+    paths:
+      - 'mounthide.c'
+      - 'Makefile'
+      - 'module/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        kmi:
+          - android12-5.10
+          - android13-5.10
+          - android13-5.15
+          - android14-5.15
+          - android14-6.1
+          - android15-6.6
+          - android16-6.12
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ylarod/ddk-min:${{ matrix.kmi }}-20260313
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build mounthide.ko
+        run: |
+          unset ARCH CROSS_COMPILE
+          export ARCH=arm64
+          make -C /opt/ddk/kdir/${{ matrix.kmi }} M=$PWD modules
+
+      - name: Package module zip
+        run: |
+          set -e
+          pkg="mounthide-${{ matrix.kmi }}"
+          mkdir -p "$pkg"
+          cp mounthide.ko module/module.prop module/service.sh "$pkg/"
+          cd "$pkg"
+          python3 -m zipfile -c "$pkg.zip" module.prop service.sh mounthide.ko
+          mv "$pkg.zip" ../
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.kmi }}-lkm
+          path: |
+            mounthide-${{ matrix.kmi }}.ko
+            mounthide-${{ matrix.kmi }}.zip
+          if-no-files-found: error

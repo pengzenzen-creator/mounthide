@@ -1,0 +1,6 @@
+id=mounthide
+name=Mounthide
+version=1.0
+versionCode=1
+author=tees
+description=Hide KernelSU module mounts from /proc/mountinfo/mounts/mountstat (kprobe based LKM)
